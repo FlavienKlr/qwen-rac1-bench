@@ -1,0 +1,43 @@
+# Retail game data: never committed, even in a private repo
+baserom/
+*.iso
+*.ISO
+*.elf
+*.ELF
+SCES_*
+SCUS_*
+SLUS_*
+asm/
+*.s
+*.S
+
+# Raw run logs (contain retail disassembly)
+raw/
+logs/
+*.jsonl
+runs.log
+
+# Secrets
+.env
+.env.*
+*.pem
+*.key
+id_*
+
+# Local
+.DS_Store
+__pycache__/
+.venv/
+
+# Model weights
+*.gguf
+*.safetensors
+models/
+
+# Python build
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
