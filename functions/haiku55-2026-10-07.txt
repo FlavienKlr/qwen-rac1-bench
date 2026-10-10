@@ -1,0 +1,29 @@
+# Replay pool: the Haiku 5.5 trial of 2026-10-07 (18 one-function workers,
+# docs/WORKER.md, budget 15), replayed at its parent commit 777a7b13.
+#
+# Upstream's commit c7a3ef2a names 14 of the 18 functions: the 6 Haiku matched
+# and the 8 whose best attempts it staged. Haiku's outcome is known for all 14,
+# which is what the per-function comparison uses. The other 4 are only in the
+# maintainers' local build-sn/waves/*.json (optional: append them if you get it).
+#
+# Columns after '#': Haiku 5.5's outcome; catalogue size at 777a7b13 (before any join).
+
+# Matched by Haiku 5.5
+func_L00_001F75F8   # EXACT, join named by the worker; 132 B
+func_L00_001ED2C0   # EXACT, join named by the worker; 192 B
+func_L00_00285698   # EXACT, join named by the worker; 140 B
+func_L14_00317BD0   # EXACT, join + overlay_check change (nops); 112 B
+func_L02_0020BF88   # EXACT; 260 B
+func_L11_002D3620   # EXACT, had a staged attempt before; 392 B
+
+# Not matched by Haiku 5.5 (best attempt staged)
+func_L04_0024D4A8   # not exact, a join named; 140 B
+func_L07_00315108   # not exact; 184 B
+func_L12_00272D90   # not exact, had a staged attempt before; 148 B
+func_L12_0030A880   # not exact; 152 B
+func_L14_002F2778   # not exact, join named, 9 bytes off after it; 104 B
+func_L00_00235FF8   # not exact, had a staged attempt before; 148 B
+func_L00_00257F4C   # not exact; 104 B
+func_L01_00317408   # not exact, a join named; 124 B
+
+# Optional: the four remaining functions of the trial.

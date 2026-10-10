@@ -41,3 +41,7 @@ build/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+
+# Benchmark run data: raw archives and transcripts contain retail disassembly
+runs/
+*.tar.gz

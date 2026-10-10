@@ -1,25 +1,45 @@
-# CLAUDE.md — qwen-rac1-bench (public)
+# CLAUDE.md: qwen-rac1-bench (public)
 
-Public benchmark harness: does a locally run Qwen model manage matching decompilation on `OpenRAC/rac1-decomp` (Ratchet & Clank, PS2, PAL)? The full protocol, decisions and infra notes live in the owner's **private** repo `qwen-rac1-bench-lab` (`PROTOCOL.md` is the spec this harness implements). Do not copy private infra details here.
+Public benchmark harness: Qwen3.8-27B, served locally, replays the Haiku 5.5
+worker trial of `OpenRAC/rac1-decomp` (2026-10-07) under the project's own
+worker protocol, tools and run budget. The protocol, decisions, status and
+infrastructure notes live in the owner's **private** repository
+`qwen-rac1-bench-lab`. Do not copy private details here.
 
 ## Language
 
-The owner talks in French. Everything committed to this repo (code, comments, docs, commit messages) is in **English**.
+The owner talks in French. Everything committed to this repository (code,
+comments, docs, commit messages) is in **English**.
 
 ## Hard rules
 
-- **No retail game data, ever**: no baserom, ISO, ELF, `asm/`, `.s` files, extracted assets, or raw run logs (packets and `--diff` output contain retail disassembly). `.gitignore` blocks the usual paths; check `git status` before every commit anyway. Outputs that may be published: function names and sizes, aggregate metrics, matched C.
-- **No secrets or infra details**: no keys, tokens, hostnames, IPs or tunnel ports. Configuration comes from environment variables or a gitignored local file.
-- **Do not reimplement the judge.** `tools/try_func.py` from the upstream checkout decides `EXACT`. The harness calls it as a subprocess (through the upstream container wrapper `tools/docker/run.sh`), with `--arm=<arm>` so each condition gets its own folder, run log and budget.
-- **Never modify the upstream checkout** except where upstream tools write by design (`build-sn/try/<func>/<arm>/`, `build-sn/waves/`). Never push to upstream; never use its shared claims for benchmark runs.
-- **Never invent results.** No fabricated numbers in docs, tests or examples; use clearly fake fixtures in tests.
+- **No retail game data, ever**: no baserom, ISO, ELF, `asm/`, `.s` files,
+  extracted assets, or raw run data (transcripts, `CONTEXT.md` packets and
+  `--diff` output contain retail disassembly). Check `git status` before every
+  commit. Publishable: function names and sizes, verdicts, aggregates, matched C.
+- **No secrets or infrastructure details**: no keys, tokens, hostnames, IPs,
+  tunnel ports or personal paths. Use placeholders (`JUMP`, `VM`) and parameters.
+- **Do not reimplement the judge.** Upstream's `tools/try_func.py` decides
+  `EXACT`; the harness only calls it.
+- **Never modify the upstream checkout** outside what its tools write by design
+  (`build-sn/try/`, `build-sn/waves/`). Never push to upstream.
+- **Never invent results.** No fabricated numbers in docs, tests or examples.
+- **Frozen after preregistration**: once `PREREGISTRATION.md` is committed here,
+  the harness changes only to fix a bug that blocks the runs, and every such
+  change is logged as a deviation in the private repository.
 - **Git**: never commit or push without an explicit request.
 
-## Design principles
+## Design (why it is built this way)
 
-- **The model only gets mediated tools** in the default mode: `write_candidate`, `run_try_func`, `read_file` (allowlist), `append_notes`, `stop`. No shell. A shell arm, if added, must hash the protected upstream tree before and after each function and record every change.
-- **Log everything, one JSONL line per attempt**: function, arm, run number, verdict, input / cached / output tokens, wall time, candidate hash. Logs go to a directory outside the repo, given by configuration.
-- **Reproducibility**: record the upstream commit, the harness commit, the model file hash, quantization, llama.cpp commit, context length and sampling parameters in every run's metadata.
-- **Validity screen** on every `EXACT`: re-run `try_func --no-budget` in a clean checkout, then check for forbidden constructs (inline asm in a function body, register pins, barriers, `volatile` added to pin an order, `#define`, numeric level addresses, `__asm__` aliases on expressions). An `EXACT` that fails the screen is recorded as an invalid match, never as a success.
-- **Any OpenAI-compatible endpoint** for the model; no vendor SDK lock-in.
-- Python ≥ 3.10, minimal dependencies, typed, small modules. Ask before adding a dependency.
+- **Same conditions as the Haiku trial, only the model changes**: the worker
+  gets `tools/wave.py`'s one-line prompt, `.claude/agents/match-worker.md` as
+  system prompt, and the same six tools (Bash, Read, Write, Edit, Grep, Glob),
+  as root in a disposable VM. A mediated-tools mode is a possible later arm,
+  not this study.
+- **Nothing that measures runs where the agent can reach it**: tokens and GPU
+  time are logged on the PC (`pc/logproxy.py`), power on the PC
+  (`pc/power_log.py`), and matches are decided by `harness/verify.py` in a
+  freshly restored VM (fresh `try_func`, static rule screen, full build). An
+  EXACT that breaks a rule is counted separately, never as a success.
+- **Any OpenAI-compatible endpoint**, standard library only (the VM has no
+  network during runs).
