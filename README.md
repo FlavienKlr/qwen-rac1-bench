@@ -84,8 +84,16 @@ huihui's MTP head is unmodified while its trunk is ablated, so its draft
 acceptance (logged per request in the ledger) may be lower: that is a real
 cost of abliteration, worth reporting.
 
-Record the sha256 of the file actually loaded (in the Hugging Face cache:
-`Get-FileHash -Algorithm SHA256 <path>.gguf` on Windows, `sha256sum` on Linux).
+**Pin the weights.** `hf = repo:Q6_K` follows the repository, so an update
+between two passes would silently change the model. After the first download,
+find the file the router actually loaded (its load log prints the path, after
+`creating MTP draft context against the target model`), replace `hf = ...`
+with `model = <that path>`, and record its sha256 (`Get-FileHash -Algorithm
+SHA256 <path>` on Windows, `sha256sum` on Linux).
+
+**Check MTP** on each preset with one request: the response's `timings` carry
+`draft_n` and `draft_n_accepted` when speculative decoding is active, and the
+load log prints `creating MTP draft context`.
 
 ### 2.2 Start (four terminals)
 
