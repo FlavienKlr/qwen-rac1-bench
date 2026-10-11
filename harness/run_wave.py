@@ -44,6 +44,10 @@ RESULTS = Path(os.environ.get("BENCH_RESULTS", "/opt/rac1/results"))
 OUTBOX = Path(os.environ.get("BENCH_OUTBOX", "/opt/rac1/out"))
 WATCH = ["/tmp", "/root", str(REPO.parent), "/etc", "/usr/local"]   # where stray writes would land
 SKIP = ("/root/.cache", str(RESULTS), str(OUTBOX))
+# Written by the system or by upstream's own tools when they run, not by the agent:
+# Python bytecode caches (try_func runs under the container's Python) and
+# background daemons' state files.
+NOISE = ("/__pycache__/", "/etc/cups/", "/root/.python_history", "/root/.lesshst")
 
 
 def sh(cmd, cwd=REPO, check=False):
@@ -73,7 +77,7 @@ def stray_files(marker: Path, func: str) -> list[str]:
         r = subprocess.run(["find", root, "-xdev", "-newer", str(marker), "-type", "f"],
                            capture_output=True, text=True, errors="replace")
         for p in r.stdout.splitlines():
-            if p.startswith(own) or p.startswith(SKIP) or p == str(marker):
+            if p.startswith(own) or p.startswith(SKIP) or p == str(marker) or any(n in p for n in NOISE):
                 continue
             found.append(p)
     return sorted(found)
