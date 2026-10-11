@@ -161,6 +161,17 @@ Below, `JUMP` is your jumphost and `VM` the VM's address.
    curl -m 5 https://github.com        # must fail
    curl -s 127.0.0.1:8080/health       # must answer while the tunnel is up
    ```
+   If the Proxmox firewall is off at datacenter level and you would rather
+   not turn it on (on a remote host it can lock you out), block the VM's
+   new outgoing connections on the Proxmox host instead, for a VM behind a
+   NAT bridge: replies to your inbound SSH still pass, nothing the VM opens
+   does, and root inside the VM cannot undo it:
+   ```bash
+   VMIP=10.0.0.10   # the VM's address
+   iptables -I FORWARD 1 -s $VMIP -m conntrack --ctstate NEW -j REJECT   # to the internet
+   iptables -I INPUT   1 -s $VMIP -m conntrack --ctstate NEW -j REJECT   # to the host itself
+   # to lift it later: the same two commands with -D instead of -I 1
+   ```
 6. **Snapshot**: `qm snapshot <vmid> golden`. Every run and every
    verification starts from it.
 
