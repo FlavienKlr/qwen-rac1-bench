@@ -96,6 +96,7 @@ echo "== hashes of everything the agent must not change"
 ( cd "$REPO" && git ls-files -s | sha256sum ) | sed 's/^/tracked_tree /' >> "$MANIFEST"
 cat "$MANIFEST"
 echo
-echo "Done. Check golden-build.log ends with a matching image, then:"
+echo "Done. Check golden-build.log ends with a matching image, then run"
+echo "vm/add_overlays_lombyte.sh (level code from the disc image, Lombyte's report), then:"
 echo "  1. plan the wave (README step 4) BEFORE cutting the network if it needs docker pulls (it should not)"
 echo "  2. cut outbound network in Proxmox, 3. snapshot 'golden'."

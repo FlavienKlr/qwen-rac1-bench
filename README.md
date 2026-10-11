@@ -118,7 +118,8 @@ Record the llama.cpp version (`llama-server --version`) and the GGUF's sha256: b
 **no secrets** in it (no GitHub token, no SSH key that opens anything else).
 Below, `JUMP` is your jumphost and `VM` the VM's address.
 
-1. **Extract the executable** from a PAL v2.00 disc image:
+1. **Extract the executable** from a PAL v2.00 disc image (keep the image too:
+   the level code under test lives in it, not in the executable):
    ```bash
    7z e "Ratchet & Clank (PAL).iso" SCES_509.16
    sha1sum SCES_509.16   # must be 79956931bd62fafd8d20fa2eae796dbaf2e15e83
@@ -135,7 +136,13 @@ Below, `JUMP` is your jumphost and `VM` the VM's address.
    scp -J JUMP SCES_509.16 VM:/opt/rac1/
    scp -r -J JUMP qwen-rac1-bench VM:/root/
    ssh -J JUMP VM 'bash /root/qwen-rac1-bench/vm/provision.sh'
+   scp -J JUMP "Ratchet & Clank (PAL).iso" VM:/opt/rac1/SCES_509.16.iso
+   ssh -J JUMP VM 'bash /root/qwen-rac1-bench/vm/add_overlays_lombyte.sh'
    ```
+   The second script dumps every level's overlay from the disc image
+   (`tools/overlays.py dump`), disassembles them, fetches Lombyte's progress
+   report as of the replay date (what `tools/lombyte.py` reads), and checks
+   that every pool function has its assembly.
    The repository is pinned at **777a7b13** (the parent of the Haiku trial's
    commit) **with no later history**: the agent cannot `git show` the commit
    that holds Haiku's answers. Lombyte, the toolchains, m2c and asm-differ are
@@ -289,7 +296,8 @@ functions.
 | `pc/logproxy.py` | proxy that logs tokens and GPU time on the PC |
 | `pc/tunnel.ps1` | the `ssh -R` tunnel to the proxy, no agent forwarding, reconnecting |
 | `pc/power_log.py` | GPU power once a second (Windows or Linux) |
-| `vm/provision.sh` | builds the golden state |
+| `vm/provision.sh` | builds the golden state: repository, toolchains, image, executable build |
+| `vm/add_overlays_lombyte.sh` | level overlays from the disc image, Lombyte's report, pool check |
 | `harness/worker.py` | one worker: WORKER.md protocol, the six tools, the local endpoint |
 | `harness/run_wave.py` | plan, sequential run with audit and restore, m2c baseline, export |
 | `harness/verify.py` | static rules, fresh rerun, full build |
