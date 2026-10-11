@@ -25,7 +25,9 @@ need() { command -v "$1" >/dev/null || { echo "missing $1"; exit 1; }; }
 
 echo "== packages"
 apt-get update -qq
-apt-get install -y -qq git python3 python3-pip ripgrep jq docker.io ca-certificates >/dev/null
+apt-get install -y -qq git python3 python3-pip ripgrep jq docker.io ca-certificates tmux p7zip-full >/dev/null
+# BuildKit for `docker build --platform` (Debian 12/13 package); the legacy builder is the fallback
+apt-get install -y -qq docker-buildx >/dev/null 2>&1 || echo "docker-buildx not available, using the legacy builder"
 systemctl enable --now docker
 need git; need docker; need python3
 
