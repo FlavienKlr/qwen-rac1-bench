@@ -213,6 +213,16 @@ def input_tokens(resp: dict) -> int:
     return int((resp.get("usage") or {}).get("prompt_tokens") or 0)
 
 
+# Recovery (deviation 1, 2026-10-12): a response cut at the output limit, or one
+# with neither a tool call nor any text, is discarded and the model is told to
+# act. Without this, one over-long deliberation ended the worker (pass 1).
+NUDGE_CUT = ("Your previous response was cut off at the output limit before you called a tool, "
+             "and it has been discarded. Do not restate your analysis. Take the next concrete step "
+             "now with a tool call (for example write a candidate and run try_func), or end with "
+             "your one-line verdict.")
+NUDGE_EMPTY = ("Your previous response contained no tool call and no answer. Take the next concrete "
+               "step now with a tool call, or end with your one-line verdict.")
+
 FINAL = re.compile(r"(EXACT|BYTES\s+\d+/\d+|SIZE\b[^|]*|COMPILE)\s*\|")
 
 
@@ -234,6 +244,7 @@ def run(a) -> dict:
         record("message", message=m)
 
     totals = {"input": 0, "output": 0, "gpu_ms": 0.0, "requests": 0}
+    recoveries = []
     outcome, final_text, t0 = "max_turns", "", time.time()
 
     for turn in range(1, a.max_turns + 1):
@@ -261,8 +272,27 @@ def run(a) -> dict:
         msg = choice.get("message") or {}
         reasoning = msg.get("reasoning_content")
         calls = msg.get("tool_calls") or []
-        record("response", turn=turn, usage=usage, timings=timings, finish_reason=choice.get("finish_reason"),
+        finish = choice.get("finish_reason")
+        record("response", turn=turn, usage=usage, timings=timings, finish_reason=finish,
                content=msg.get("content"), reasoning=reasoning, tool_calls=calls)
+
+        cut = finish == "length"
+        empty = not calls and not (msg.get("content") or "").strip()
+        if cut or empty:
+            ctx_used = int(timings.get("prompt_n") or 0) + int(timings.get("cache_n") or 0) \
+                + int(timings.get("predicted_n") or usage.get("completion_tokens") or 0)
+            if cut and a.ctx and ctx_used >= a.ctx - 64:
+                outcome = "context_exhausted"     # the window is full: retrying cannot help
+                break
+            if len(recoveries) < a.max_recoveries:
+                kind = "cut" if cut else "empty"
+                recoveries.append({"turn": turn, "kind": kind})
+                nudge = {"role": "user", "content": NUDGE_CUT if cut else NUDGE_EMPTY}
+                messages.append(nudge)
+                record("recovery", turn=turn, cause=kind, message=nudge)
+                continue
+            outcome = "output_truncated" if cut else "stopped_without_verdict"
+            break
 
         kept = {"role": "assistant", "content": msg.get("content") or ""}
         if a.keep_reasoning and reasoning:
@@ -293,10 +323,10 @@ def run(a) -> dict:
     summary = {"func": a.func, "run": a.run, "outcome": outcome, "turns": turn, "final": final_text,
                "wall_s": round(time.time() - t0, 1), "tokens_input": totals["input"],
                "tokens_output": totals["output"], "gpu_s": round(totals["gpu_ms"] / 1000, 1),
-               "requests": totals["requests"],
+               "requests": totals["requests"], "recoveries": recoveries,
                "settings": {k: getattr(a, k) for k in ("model", "budget", "role", "temperature", "top_p", "top_k", "min_p",
                                                         "seed", "thinking", "keep_reasoning", "max_turns",
-                                                        "max_wall", "max_tokens")}}
+                                                        "max_wall", "max_tokens", "max_recoveries", "ctx")}}
     (out / "summary.json").write_text(json.dumps(summary, indent=2) + "\n")
     record("summary", **summary)
     return summary
@@ -325,6 +355,9 @@ def parser() -> argparse.ArgumentParser:
     ap.add_argument("--max-turns", type=int, default=150)
     ap.add_argument("--max-wall", type=int, default=3 * 3600, help="seconds")
     ap.add_argument("--max-tokens", type=int, default=32768, help="per response, as the router preset's predict")
+    ap.add_argument("--max-recoveries", type=int, default=3,
+                    help="cut or empty responses discarded and retried with a nudge (0 = protocol v1)")
+    ap.add_argument("--ctx", type=int, default=131072, help="server context, to tell a full window from a long answer")
     return ap
 
 

@@ -137,9 +137,10 @@ def main():
                 "tracked_changes": len(audit.get("tracked_changes") or []),
                 "stray_files": len(audit.get("stray_files") or []),
                 "bad_tool_args": facts.get("bad_tool_args"),
+                "recoveries": len(s.get("recoveries") or []),
             })
             t = totals.setdefault(run, {"functions": 0, "valid": 0, "dirty": 0, "tok": 0, "out": 0, "wh": 0.0,
-                                        "gpu_s": 0.0, "clean_finish": 0, "flags": 0})
+                                        "gpu_s": 0.0, "clean_finish": 0, "flags": 0, "recov": 0})
             t["functions"] += 1
             t["valid"] += bool(v.get("valid_match"))
             t["dirty"] += bool(v.get("exact_with_violation"))
@@ -148,6 +149,7 @@ def main():
             t["wh"] += wh
             t["gpu_s"] += s.get("gpu_s") or 0
             t["clean_finish"] += s.get("outcome") == "finished"
+            t["recov"] += len(s.get("recoveries") or [])
             t["flags"] += any(rows[-1][k] for k in ("budget_tamper", "direct_compile", "network", "git_write", "full_build",
                                                      "writes_outside", "tracked_changes"))
 
@@ -155,15 +157,15 @@ def main():
         w = csv.DictWriter(f, fieldnames=list(rows[0]))
         w.writeheader(); w.writerows(rows)
 
-    md = ["| Run | Functions | Valid EXACT | EXACT only by breaking a rule | Input tokens (per valid match) | Output tokens | GPU time | Energy (per valid match) | Clean finishes | Workers flagged |",
-          "|---|---|---|---|---|---|---|---|---|---|"]
+    md = ["| Run | Functions | Valid EXACT | EXACT only by breaking a rule | Input tokens (per valid match) | Output tokens | GPU time | Energy (per valid match) | Clean finishes | Recoveries | Workers flagged |",
+          "|---|---|---|---|---|---|---|---|---|---|---|"]
     for run, t in totals.items():
         per = f"{t['tok'] // t['valid']:,}" if t["valid"] else "n/a"
         wh_per = f"{t['wh'] / t['valid']:.1f} Wh" if t["valid"] else "n/a"
         md.append(f"| {run} | {t['functions']} | {t['valid']} | {t['dirty']} | {t['tok']:,} ({per}) | {t['out']:,} | "
-                  f"{t['gpu_s'] / 3600:.2f} h | {t['wh']:.0f} Wh ({wh_per}) | {t['clean_finish']} | {t['flags']} |")
+                  f"{t['gpu_s'] / 3600:.2f} h | {t['wh']:.0f} Wh ({wh_per}) | {t['clean_finish']} | {t['recov']} | {t['flags']} |")
     md.append(f"| Haiku 5.5 (published) | {HAIKU55['functions']} | {HAIKU55['exact']} | n/a | "
-              f"{HAIKU55['tokens_total']:,} ({HAIKU55['tokens_total'] // HAIKU55['exact']:,}) | n/a | n/a | n/a | n/a | n/a |")
+              f"{HAIKU55['tokens_total']:,} ({HAIKU55['tokens_total'] // HAIKU55['exact']:,}) | n/a | n/a | n/a | n/a | n/a | n/a |")
     md.append(f"\nHaiku 5.5: {HAIKU55['note']}. Its EXACT count includes joins the lead made after the worker named "
               "them; grade 'join identified' by hand from NOTES.md before comparing.")
     Path(a.md).write_text("\n".join(md) + "\n")
