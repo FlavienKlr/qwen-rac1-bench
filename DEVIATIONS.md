@@ -29,3 +29,24 @@ the agent, so the original rule also made the comparison with Haiku 5.5
 Three new passes run with recovery (protocol v2), seeds 1000, 2000 and 3000,
 named `qwen38-base-v2-s1` to `-s3`. The hypotheses are evaluated on v2; v1
 is reported next to it. Harness version for v2: the commit adding this file.
+
+## 2. Verifier: allowed symbol aliases with a trailing attribute (2026-10-13)
+
+**What changed.** `harness/verify.py`'s static screen allows file-scope symbol
+aliases (`extern int D_x_m __asm__("D_x");`), as the preregistered rules do.
+Its pattern required the `;` right after the alias, so the upstream idiom
+`extern int D_x_m __asm__("D_x") MACRO_ADDR;` (in `include/common.h`, used in
+over a hundred upstream source files at the replay commit) was flagged as
+`inline_asm`. The pattern now accepts trailing attributes before the `;`.
+Statement-level `asm`/`__asm__` and register pins are still flagged.
+
+**Why.** A bug in the verifier, found while reading `qwen38-base-v2-s1`'s
+results: all three candidates of `func_L11_002D3620` were flagged although
+their only `__asm__` is this alias idiom. It changes no runs and no
+`try_func` verdict, only the rule screen.
+
+**Consequence.** Re-screening every candidate of `qwen38-base-s1` and
+`qwen38-base-v2-s1` with the fixed pattern: no candidate breaks a rule in
+either pass (before the fix, the three `func_L11_002D3620` candidates were
+the only ones flagged; none was EXACT). Verdicts and valid-match counts are
+unchanged. Later passes are verified with the fixed `verify.py`.

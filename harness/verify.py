@@ -34,7 +34,9 @@ from pathlib import Path
 REPO = Path("/opt/rac1/rac1-decomp")
 sys.path.insert(0, str(REPO / "tools"))
 
-ALIAS = re.compile(r'^\s*extern\b[^;{]*__asm__\s*\(\s*"[^"]*"\s*\)\s*;', re.M)   # allowed, file scope
+# allowed, file scope; trailing attributes such as upstream's MACRO_ADDR
+# (`extern int D_x_m __asm__("D_x") MACRO_ADDR;`) are part of the idiom
+ALIAS = re.compile(r'^\s*extern\b[^;{]*__asm__\s*\(\s*"[^"]*"\s*\)[^;{(]*(?:\(\([^;{]*\)\)[^;{(]*)?;', re.M)
 RULES = [
     ("include_asm", re.compile(r"\bINCLUDE_ASM\s*\(")),
     ("inline_asm", re.compile(r"\b(__asm__|asm)\b")),          # checked after removing allowed aliases
