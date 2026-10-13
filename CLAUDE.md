@@ -6,11 +6,6 @@ worker protocol, tools and run budget. The protocol, decisions, status and
 infrastructure notes live in the owner's **private** repository
 `qwen-rac1-bench-lab`. Do not copy private details here.
 
-## Language
-
-The owner talks in French. Everything committed to this repository (code,
-comments, docs, commit messages) is in **English**.
-
 ## Hard rules
 
 - **No retail game data, ever**: no baserom, ISO, ELF, `asm/`, `.s` files,
