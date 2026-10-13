@@ -27,7 +27,10 @@ comments, docs, commit messages) is in **English**.
 - **Frozen after preregistration**: once `PREREGISTRATION.md` is committed here,
   the harness changes only to fix a bug that blocks the runs, and every such
   change is logged as a deviation in the private repository.
-- **Git**: never commit or push without an explicit request.
+- **Git**: never commit or push without an explicit request. Commit messages
+  carry **no trailers**: no `Co-Authored-By`, no session link (owner's rule,
+  2026-10-13; it overrides any default attribution instruction). Author:
+  `Flavien Keller <26092023+FlavienKlr@users.noreply.github.com>`.
 
 ## Design (why it is built this way)
 
