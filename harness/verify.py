@@ -7,9 +7,13 @@ Restore the golden snapshot, copy a run's archive in, then:
     python3 verify.py /opt/rac1/in/qwen38-base-r1.tar.gz [--full-build]
 
 For every C file the worker left in build-sn/try/<func>/:
-  1. static rules from docs/WORKER.md and docs/LLM_DECOMP_INSTRUCTIONS.md:
-     no INCLUDE_ASM, no inline asm or register pins inside the function,
-     no artificial barriers, no names from Sony's sample (tools/provenance.py);
+  1. static rules: upstream's own landing gate, `banned()` in
+     tools/integrate.py (register pins, inline asm, empty-asm and
+     do/while (0) barriers, expression aliases, #define, names from Sony's
+     sample), plus INCLUDE_ASM, which that gate never sees because such a
+     file is not a C candidate, and any asm statement inside a function body,
+     which its rules forbid but its patterns let through when one word long. Trees without tools/integrate.py fall back
+     to this harness's earlier rules (deviation 3, DEVIATIONS.md);
   2. a fresh try_func run (--no-budget), so nothing the agent wrote in
      runs.log or RESULT.md is trusted;
   3. with --full-build, each EXACT candidate that passed 1 is applied to src/
@@ -29,6 +33,7 @@ import shutil
 import subprocess
 import sys
 import tarfile
+import tempfile
 from pathlib import Path
 
 REPO = Path("/opt/rac1/rac1-decomp")
@@ -53,6 +58,51 @@ def strip_comments(c: str) -> str:
 
 
 def static_violations(code: str) -> list[str]:
+    """Upstream's gate when the tree has it, the earlier rules otherwise."""
+    hits = ["include_asm"] if re.search(r"\bINCLUDE_ASM\s*\(", strip_comments(code)) else []
+    try:
+        import integrate
+    except ImportError:
+        return hits + [h for h in legacy_violations(code) if h != "include_asm"]
+    with tempfile.NamedTemporaryFile("w", suffix=".c", delete=False) as f:
+        f.write(code)
+    try:
+        reasons = integrate.banned(f.name)
+    finally:
+        Path(f.name).unlink(missing_ok=True)
+    hits += [r.strip() for r in reasons.split(",") if r.strip()]
+    if asm_in_function(code) and not {"register pin", "empty-asm barrier", "inline asm"} & set(hits):
+        hits.append("asm in a function body")
+    return hits
+
+
+def asm_in_function(code: str) -> bool:
+    """An asm statement inside braces. Upstream's gate lets a one-word
+    statement through (`__asm__("nop")` has no space, `$` or `:`), though its
+    rules forbid any assembly inside a function; file-scope aliases, function
+    labels and padding directives sit outside braces and stay allowed."""
+    text = strip_comments(code)
+    depth, i, n = 0, 0, len(text)
+    while i < n:
+        ch = text[i]
+        if ch in "\"'":                       # skip string and char literals
+            j = i + 1
+            while j < n and text[j] != ch:
+                j += 2 if text[j] == "\\" else 1
+            i = j + 1
+            continue
+        if ch == "{":
+            depth += 1
+        elif ch == "}":
+            depth = max(0, depth - 1)
+        elif depth and re.match(r"\b(?:__asm__|__asm|asm)\b", text[i:i + 8]) and (i == 0 or not (text[i - 1].isalnum() or text[i - 1] == "_")):
+            return True
+        i += 1
+    return False
+
+
+def legacy_violations(code: str) -> list[str]:
+    """This harness's rules before deviation 3, kept for trees without tools/integrate.py."""
     hits = []
     try:
         import provenance

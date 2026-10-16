@@ -50,3 +50,30 @@ their only `__asm__` is this alias idiom. It changes no runs and no
 either pass (before the fix, the three `func_L11_002D3620` candidates were
 the only ones flagged; none was EXACT). Verdicts and valid-match counts are
 unchanged. Later passes are verified with the fixed `verify.py`.
+
+## 3. Verifier: upstream's landing gate as the rule screen (2026-10-16)
+
+**What changed.** `harness/verify.py`'s static screen now asks upstream's own
+landing gate, `banned()` in `tools/integrate.py` at the replay commit, which
+refuses register pins, inline asm, empty-asm and `do/while (0)` barriers,
+expression aliases (`__asm__("D_x+0x34")`), `#define` in a candidate and
+names from Sony's sample. Two checks are kept on top of it: `INCLUDE_ASM`
+(that gate only ever sees C candidates), and any asm statement inside a
+function body, which upstream's rules forbid but whose patterns let a
+one-word statement such as `__asm__("nop")` through. The harness's earlier
+rules remain as a fallback for trees without `tools/integrate.py`.
+
+**Why.** The earlier screen was this harness's own reading of upstream's
+rules and was wrong twice: deviation 2 (aliases with `MACRO_ADDR`), then
+function asm labels (`T f(args) __asm__("func_X")`), which upstream's
+`docs/LEVERS.md` explicitly allows and which three candidates of
+`func_L07_00315108` in `qwen38-base-v2-s2` use. What counts as a rule break
+should be what the project itself refuses to land, not a re-implementation.
+The differences in scope: `#pragma` is no longer refused (upstream does not
+refuse it); `#define` and expression aliases now are.
+
+**Consequence.** Re-screening all 148 candidates of `qwen38-base-s1`,
+`qwen38-base-v2-s1` and `qwen38-base-v2-s2`: none is refused (the old screen
+refused only the three `func_L07_00315108` candidates, none of them EXACT).
+No verdict and no count changes. Passes are verified, or re-verified, with
+this `verify.py`.
