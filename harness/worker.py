@@ -255,6 +255,8 @@ def run(a) -> dict:
                 "temperature": a.temperature, "top_p": a.top_p, "top_k": a.top_k, "min_p": a.min_p,
                 "seed": a.seed + turn, "max_tokens": a.max_tokens,
                 "chat_template_kwargs": {"enable_thinking": a.thinking}}
+        if a.reasoning_effort:  # exploratory arms only; unset = the template's default (xhigh for Qwen3.8)
+            body["chat_template_kwargs"]["reasoning_effort"] = a.reasoning_effort
         resp = ep.chat(body)
         totals["requests"] += 1
         if "error" in resp:
@@ -325,7 +327,7 @@ def run(a) -> dict:
                "tokens_output": totals["output"], "gpu_s": round(totals["gpu_ms"] / 1000, 1),
                "requests": totals["requests"], "recoveries": recoveries,
                "settings": {k: getattr(a, k) for k in ("model", "budget", "role", "temperature", "top_p", "top_k", "min_p",
-                                                        "seed", "thinking", "keep_reasoning", "max_turns",
+                                                        "seed", "thinking", "reasoning_effort", "keep_reasoning", "max_turns",
                                                         "max_wall", "max_tokens", "max_recoveries", "ctx")}}
     (out / "summary.json").write_text(json.dumps(summary, indent=2) + "\n")
     record("summary", **summary)
@@ -350,6 +352,8 @@ def parser() -> argparse.ArgumentParser:
     ap.add_argument("--min-p", type=float, default=0.0)
     ap.add_argument("--seed", type=int, default=1000)
     ap.add_argument("--thinking", action=argparse.BooleanOptionalAction, default=True)
+    ap.add_argument("--reasoning-effort", choices=["low", "medium", "xhigh"], default=None,
+                    help="chat template reasoning_effort; unset sends nothing (preregistered passes)")
     ap.add_argument("--keep-reasoning", action="store_true",
                     help="keep reasoning in the history (Qwen's guidance is to drop it)")
     ap.add_argument("--max-turns", type=int, default=150)

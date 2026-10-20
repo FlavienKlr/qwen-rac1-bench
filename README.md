@@ -268,7 +268,13 @@ biased against Qwen.
 
 ## 8. Optional
 
-- **huihui arm**: same golden, seeds and context, `--model bench-huihui`. Only the GGUF changes.
+- **Reasoning-effort arms** (exploratory, outside the preregistered hypotheses):
+  Qwen3.8's chat template takes `reasoning_effort` (`low`, `medium`, `xhigh`,
+  default `xhigh`, which every preregistered pass used). Same golden and pool,
+  one pass each, worker flags after `--`: `--reasoning-effort low`, or
+  `--no-thinking`. Check in the ledger that reasoning tokens actually drop.
+- **Fine-tune arm**: same golden, seeds and context, `--model <preset>` for a
+  fine-tune of the same 27B base. Only the GGUF changes.
 - **Contribution phase** (real long-horizon work): a second golden on the
   current HEAD, with functions nobody has tried
   (`wave.py plan NAME --overlay --fresh --count N --budget 15`). EXACT results
